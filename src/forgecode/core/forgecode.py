@@ -123,10 +123,45 @@ class ForgeCode:
         cls._default_max_retries = max_retries
 
     @classmethod
-    def from_openai(cls, api_key: str):
-        """Alternative constructor: Initializes ForgeCode with OpenAI as the default LLM."""
-        openai_client = OpenAILLMClient(api_key=api_key)
-        return cls(llm=openai_client)
+    def from_openai(cls, api_key: str, model: str = "gpt-4", **kwargs):
+        """
+        Alternative constructor: Initializes ForgeCode with OpenAI as the LLM.
+        
+        Args:
+            api_key: OpenAI API key for authentication
+            model: OpenAI model to use (default: "gpt-4")
+            **kwargs: Additional parameters to pass to ForgeCode constructor
+            
+        Returns:
+            ForgeCode instance configured with OpenAI
+            
+        Examples:
+            ```python
+            # Basic usage
+            forge = ForgeCode.from_openai(api_key="your-api-key")
+            
+            # With model specification
+            forge = ForgeCode.from_openai(
+                api_key="your-api-key", 
+                model="gpt-4o",
+                prompt="sum two numbers",
+                schema_from={"sum": 5}
+            )
+            ```
+        """
+        try:
+            openai_client = OpenAILLMClient(api_key=api_key)
+            
+            kwargs_with_defaults = {
+                'llm': openai_client,
+                'model': model,
+                **kwargs
+            }
+            
+            return cls(**kwargs_with_defaults)
+            
+        except Exception as e:
+            raise ValueError(f"Failed to initialize OpenAI client: {str(e)}")
 
     def run(
         self, 
