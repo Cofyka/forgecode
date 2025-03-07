@@ -1,7 +1,7 @@
 [project]
 name = "forgecode"
-version = "0.1.0"
-description = "A Python library for in code code generation"
+version = "0.1.1"
+description = "A Python library enabling dynamic code generation using LLMs, iteratively creating executable code from goals, schemas, arguments, and modules."
 authors = [{ name = "Filip Mihajlović", email = "filipmihajlovic@icloud.com"}]
 license = { text = "MIT" }
 readme = "README.md"
