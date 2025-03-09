@@ -1,12 +1,9 @@
+import config 
+
 import urllib.request
 import json
 
 from forgecode import ForgeCode
-from forgecode.core.llm.openai_client import OpenAILLMClient
-from config import get_env_var
-
-ForgeCode.set_default_llm(OpenAILLMClient(api_key=get_env_var("OPENAI_API_KEY")))
-ForgeCode.set_default_model("gpt-4o")
 
 BASE_URL = "https://jsonplaceholder.typicode.com"
 
