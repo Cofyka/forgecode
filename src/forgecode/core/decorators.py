@@ -1,20 +1,35 @@
 import functools
 import inspect
 import sys
+from typing import Type, Callable
 import typing
+
 from forgecode.core.forgecode import ForgeCode
+from forgecode.core.utils.normalize_args import normalize_args
+
+try:
+    import pydantic
+    from pydantic import BaseModel
+    PYDANTIC_AVAILABLE = True
+except ImportError:
+    PYDANTIC_AVAILABLE = False
+    BaseModel = Type  # Just a placeholder for type hints
 
 def type_to_schema(annotation) -> dict:
     """
     Convert a Python type hint into a JSON Schema fragment.
 
-    Supports basic types (int, float, str, bool, None), as well as generic
+    Supports basic types (int, float, str, bool, None), pydantic BaseModel subclasses,
     types like List[...] and Dict[...]. For dictionaries with str keys, uses
     "additionalProperties" to define the value type.
 
     :param annotation: A type annotation.
     :return: A dictionary representing the JSON Schema.
     """
+    # If pydantic is available and the annotation is a Pydantic model, return its schema.
+    if PYDANTIC_AVAILABLE and isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return annotation.model_json_schema()
+
     basic_types = {
         int: {"type": "integer"},
         float: {"type": "number"},
@@ -48,7 +63,7 @@ def type_to_schema(annotation) -> dict:
     # Fallback: return an empty schema.
     return {}
 
-def forge(prompt: str, modules: list = None, schema: dict = None):
+def forge(prompt: str = None, modules: list = None, schema: dict = None):
     """
     Decorator to integrate ForgeCode execution with a function.
 
@@ -63,9 +78,14 @@ def forge(prompt: str, modules: list = None, schema: dict = None):
     :param modules: Optional modules to include; must be a list.
     :return: A decorator that wraps the function with ForgeCode execution.
     """
-    def decorator(func):
+    def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            # Extract prompt from docstring if not provided explicitly.
+            func_prompt = prompt or (func.__doc__.strip() if func.__doc__ else None)
+            if not func_prompt:
+                raise ValueError(f"No prompt provided for function '{func.__name__}', either in decorator or docstring.")
+            
             # Infer the return type's schema if not explicitly provided.
             type_hints = typing.get_type_hints(func)
             return_type = type_hints.get("return")
@@ -91,11 +111,22 @@ def forge(prompt: str, modules: list = None, schema: dict = None):
                 elif isinstance(modules, dict):
                     modules_dict = modules
 
-            return ForgeCode(
-                prompt=prompt,
+            result = ForgeCode(
+                prompt=func_prompt,
                 schema=schema_dict,
-                args=args,
+                args=normalize_args(args),
                 modules=modules_dict
             ).run()
+
+            # Convert dict result back to a pydantic model if the return type is a pydantic BaseModel.
+            if PYDANTIC_AVAILABLE and return_type is not None and isinstance(return_type, type) and issubclass(return_type, BaseModel):
+                try:
+                    result_model = return_type.model_validate(result)
+                except Exception as e:
+                    print(f"Error converting result to Pydantic model: {e}")
+                    raise
+                return result_model
+
+            return result
         return wrapper
     return decorator

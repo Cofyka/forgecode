@@ -1,6 +1,6 @@
 # ForgeCode
 
-ForgeCode is a Python library that enables dynamic code generation using LLMs. It allows developers to write high-level code by specifying a goal, schema, arguments, and modules, and then iteratively generates executable code that satisfies the given constraints. On subsequent calls, it remembers and reuses the last successful execution.
+ForgeCode is a Python library designed for dynamic code generation powered by Large Language Models (LLMs). It empowers developers to write high-level, dynamic and goal-oriented code by specifying their desired outcome, structured schema, input arguments, and optional modules (tools) that the LLM can utilize. ForgeCode generates executable Python code that satisfies these constraints, repeatedly attempting generation until the code executes successfully without errors and conforms precisely to the provided schema. Additionally, ForgeCode retains the last successfully executed code, enabling efficient reuse in subsequent calls. Its core strength lies in enabling dynamic and flexible code creation for complex scenarios, such as converting natural language into actionable code or effortlessly transforming complex data structures.
 
 ## Installation
 
@@ -8,94 +8,31 @@ ForgeCode is a Python library that enables dynamic code generation using LLMs. I
 pip install forgecode
 ```
 
-Or with Poetry:
-
-```bash
-poetry add forgecode
-```
-
 ## Quick Start
 
 ```python
-from forgecode import ForgeCode
+from forgecode import ForgeCode, forge
 
-# Simple example - summing two numbers
-forge = ForgeCode.from_openai(api_key="your-api-key", model="gpt-4o") # Initialize with OpenAI
-result = forge.run(
-    prompt="sum two numbers",   # Goal
-    args={"a": 3, "b": 2},      # Arguments
-    schema_from={"sum": 5}      # Schema for output
-)
+ForgeCode.set_default_llm(OpenAILLMClient(api_key="your-api-key"))
+ForgeCode.set_default_model("gpt-4o")
 
-print(result)                   # {"sum": 5}
-print(forge.get_code())         # View the generated code
+@forge()
+def fibonacci(n: int) -> list[int]: 
+    """Generate a Fibonacci function"""
+    pass
+
+print(fibonacci(10))    # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 ```
 
 ## Key Features
 
-- **Goal-oriented code generation**: Specify what you want, not how to do it
-- **Schema validation**: Ensure generated code produces output matching your specifications
-- **Execution environment**: Safely execute generated code
-- **Caching**: Remember successful solutions for faster repeated executions
-- **Iterative refinement**: Automatically fix errors through multiple generation attempts
-- **Module passing**: Provide access to specific modules or functions to the generated code
+- **Dynamic code generation**: Code is created on-the-fly based on high-level specifications, such as natural language prompts.
+- **Functionality integration**: The code generator can use the provided tools (functions) within the generated code.
+- **Code execution**: Code is executed immediately upon call with the provided arguments.
+- **Code caching**: Successful code is stored for reuse in subsequent calls.
+- **Iterative refinement & validation**: Code is generated, executed, and validated against the provided schema, repeatedly refined until it runs without errors and produces a JSON-encoded response that conforms to the schema.
 
 ## Real-World Use Cases
-
-### API Data Transformation
-
-Fetch and transform data from external APIs with minimal code:
-
-```python
-import urllib.request
-import json
-
-# API endpoint functions
-def fetch_users():
-    with urllib.request.urlopen("https://jsonplaceholder.typicode.com/users") as response:
-        return json.loads(response.read().decode())
-
-def fetch_posts():
-    with urllib.request.urlopen("https://jsonplaceholder.typicode.com/posts") as response:
-        return json.loads(response.read().decode())
-
-def fetch_comments():
-    with urllib.request.urlopen("https://jsonplaceholder.typicode.com/comments") as response:
-        return json.loads(response.read().decode())
-
-# Create a forge with access to these API functions
-forge = ForgeCode(
-    prompt="Get all users along with their posts and each post's comments.",
-    modules={
-        "users": fetch_users,
-        "posts": fetch_posts,
-        "comments": fetch_comments
-    },
-    schema_from=[
-        {
-            "id": 1,
-            "name": "John Doe",
-            "posts": [
-                {
-                    "id": 101,
-                    "title": "Post Title",
-                    "body": "Post content",
-                    "comments": [
-                        {
-                            "id": 1001,
-                            "name": "Commenter",
-                            "email": "commenter@example.com",
-                            "body": "Comment content"
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
-)
-
-enriched_data = forge.run()
-```
 
 ### Natural Language Data Query Interface
 
@@ -106,15 +43,13 @@ def query_api(prompt):
     """Convert natural language into API calls"""
     forge = ForgeCode(
         prompt=prompt,
-        modules=api_modules,  # Dictionary of API functions
-        schema={},  # Flexible schema
-        max_retries=5
+        modules=api_modules, # Dictionary of API functions
     )
     return forge.run()
 
 # Use natural language to query your API
-print(query_api("Get all the comments for the first post"))
-print(query_api("Get all incomplete todos for user with ID 3"))
+print(query_api("Get all comments for the first post"))
+print(query_api("Get all incomplete todos for the user with ID 3"))
 ```
 
 ### Schema Transformation
@@ -125,56 +60,120 @@ Easily transform data structures with the builtin schema transformer:
 from forgecode.builtins.schema_transform import schema
 
 input_data = [
-    {"first_name": "Alice", "last_name": "Johnson", "year_of_birth": 1993, "location": "New York"},
-    {"first_name": "Bob", "last_name": "Smith", "year_of_birth": 1998, "location": "San Francisco"},
+    {"name": "Alice", "birth_year": 1993},
+    {"name": "Bob", "birth_year": 1998},
 ]
 
 desired_output_example = [
-    {'fullname': 'John Doe', 'age': 30, 'location': 'Chicago'},
+    {"name": "John", "age": 30},
 ]
 
 # Transform input data to match the desired output format
-transformed_data = schema(input_data).to(desired_output_example)
+transformed_data = schema(input_data).to(desired_output_example) 
+print(transformed_data) # Output: [{"name": "Alice", "age": 32}, {"name": "Bob", "age": 27}]
 ```
-
-### Content Generation
-
-Create personalized content by combining data sources:
-
-```python
-forge = ForgeCode(
-    prompt="Create personalized email content for each user. Include a summary of their posts and comments.",
-    modules={
-        "fetch_users": fetch_users,
-        "fetch_posts": fetch_posts,
-        "fetch_comments": fetch_comments,
-        "summarize_llm": summarize,  # Function using LLM to summarize content
-    },
-    schema_from=[
-        {'user_id': 1, 'name': 'John Doe', 'title': 'Email Subject', 'body': 'Email Body'},
-    ],
-)
-
-personalized_emails = forge.run()
-```
-
-## How It Works
-
-1. **Define your goal**: Provide a clear prompt describing what you want to achieve
-2. **Specify constraints**: Add schemas, arguments, or module access as needed
-3. **Execute**: ForgeCode generates code, executes it, and validates the output
-4. **Iterative refinement**: If execution fails, ForgeCode automatically retries with error context
-5. **Caching**: Successful code is stored for reuse in subsequent calls with the same inputs
 
 ### Important Details
 
-- **Code regeneration**: ForgeCode uses a hash-based caching mechanism and regenerates code whenever any of these inputs change:
+- ***⚠️ WARNING ⚠️***
+  - The code generated by ForgeCode isn't guaranteed to be secure or bug-free, because it's generated by an LLM. Please be cautious.
+
+- **Code caching**: ForgeCode uses a hash-based caching mechanism and regenerates code whenever any of these inputs change:
   - Prompt text
-  - Arguments structure/schema
-  - Provided modules
+  - Arguments structure/schema (not values)
+  - Provided functions
   - Output schema
 
 - **Module idempotency**: Modules provided to ForgeCode must be idempotent (produce the same output when called multiple times with the same input). This is critical because ForgeCode may run these modules multiple times during the iterative code refinement process.
+  - Example: providing a function for sending an email can lead to multiple emails being sent if the function is not idempotent.
+
+## Using Decorators
+
+ForgeCode decorators simplify the creation of dynamic, LLM-generated functions. By decorating a function with `@forge`, you can dynamically generate code based on your prompt and specifications.
+
+Here's how you can use decorators:
+
+### Basic Usage
+
+Generate a simple function using a natural language prompt:
+
+```python
+from forgecode import forge
+
+@forge(prompt="Generate a Fibonacci function")
+def fibonacci(n: int) -> list[int]:
+    pass
+
+print(fibonacci(10))
+```
+
+### Providing External Tools (Functions)
+
+Supply external functions as tools to assist the code generator:
+
+```python
+from forgecode import forge
+
+def formula(a, b):
+    return a + b * 2
+
+@forge(prompt="Calculate the number using the provided formula", modules=[formula])
+def calculate_num(a: int, b: int) -> int:
+    pass
+
+print(calculate_num(5, 10))
+```
+
+### Object Transformation
+
+Use decorators to transform objects from one schema to another:
+
+```python
+from forgecode import forge
+
+person = {
+    "name": "John",
+    "lastname": "Doe",
+    "year_of_birth": 1990,
+    "city": "New York"
+}
+
+@forge(prompt="Transform the object to have full_name and age fields")
+def transform_object(obj: dict) -> dict:
+    pass
+
+print(transform_object(person))
+```
+
+### Type Inference with Pydantic (Optional)
+
+Automatically infer schemas from Pydantic models if Pydantic is installed:
+
+```python
+from forgecode import forge
+from pydantic import BaseModel
+
+class Person(BaseModel):
+    name: str
+    age: int
+
+class Greeting(BaseModel):
+    message: str
+
+@forge()
+def greet_person(person: Person) -> Greeting:
+    """Generate a personalized greeting for a person."""
+    pass
+
+greeting = greet_person(Person(name="Alice", age=30))
+
+print(greeting.message)
+```
+
+### Key points:
+- If no prompt is provided explicitly, ForgeCode will use the function’s docstring as a prompt.
+- External tools (modules/functions) can be provided for the code generation process.
+- ForgeCode automatically infers return schemas from type annotations or provided Pydantic models.
 
 ## Advanced Configuration
 
@@ -186,11 +185,11 @@ ForgeCode.set_default_max_retries(5)
 
 # Custom execution environment
 from forgecode.core.execution_environment.execution_environment import ExecutionEnvironment
-ForgeCode.set_default_exec_env(my_custom_environment)
+ForgeCode.set_default_exec_env(your_custom_environment)
 
 # Custom persistence
 from forgecode.core.persistence.code_persistence import CodePersistence
-ForgeCode.set_default_code_persistence(my_custom_storage)
+ForgeCode.set_default_code_persistence(your_custom_storage)
 ```
 
 ## License
