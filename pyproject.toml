@@ -1,6 +1,6 @@
 [project]
 name = "forgecode"
-version = "0.2.1"
+version = "0.3.0"
 description = "A Python library for runtime dynamic code generation and execution using LLMs—generating adaptive Python code from high-level goals, schemas, arguments, and functions."
 authors = [{ name = "Filip Mihajlović", email = "filipmihajlovic@icloud.com"}]
 license = { text = "MIT" }

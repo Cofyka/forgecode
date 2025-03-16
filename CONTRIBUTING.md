@@ -23,6 +23,11 @@ Thank you for your interest in contributing to ForgeCode! This project is open-s
   poetry config virtualenvs.in-project true
   poetry install
   ```
+- Add a .env file to the project root with the following content:
+  ```sh
+  OPENAI_API_KEY=your_openai_api_key
+  OPENROUTER_API_KEY=your_openrouter_api_key (optional - only needed for examples using OpenRouter)
+  ```
 - Run the example script to verify that everything is set up correctly:
   ```sh
   poetry run python examples/basic.py
