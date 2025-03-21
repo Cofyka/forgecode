@@ -24,6 +24,7 @@ class ForgeCode:
     _default_exec_env = SimpleExecutionEnvironment()
     _default_code_persistence = ForgeCache()
     _default_max_retries = 3
+    _default_enable_self_reference = False
 
     def __init__(
             self, 
@@ -36,7 +37,8 @@ class ForgeCode:
             model: str = None,
             exec_env: ExecutionEnvironment = None,
             code_persistence: CodePersistence = None,
-            max_retries: int = None):
+            max_retries: int = None,
+            enable_self_reference: bool = False):
         
         """Initializes ForgeCode with an LLM client or falls back to the default client."""
         if llm is None:
@@ -67,6 +69,9 @@ class ForgeCode:
 
         if max_retries is None:
             max_retries = ForgeCode._default_max_retries
+            
+        if enable_self_reference is None:
+            enable_self_reference = ForgeCode._default_enable_self_reference
 
         # Inputs
         self.prompt = prompt
@@ -89,6 +94,14 @@ class ForgeCode:
         self.code_persistence = code_persistence
 
         self.max_retries = max_retries
+        
+        # Enable self-reference to allow nested ForgeCode capabilities
+        if enable_self_reference:
+            from forgecode.core.decorators import forge
+            if isinstance(self.modules, dict):
+                self.modules.update({"forge": forge})
+            else:
+                self.modules = {"forge": forge}
 
     @classmethod
     def set_default_llm(cls, llm: LLMClient):
@@ -121,6 +134,11 @@ class ForgeCode:
     def set_default_max_retries(cls, max_retries: int):
         """Sets the default maximum number of retries for ForgeCode."""
         cls._default_max_retries = max_retries
+        
+    @classmethod
+    def set_default_enable_self_reference(cls, enable: bool):
+        """Sets whether ForgeCode instances should enable self-reference by default."""
+        cls._default_enable_self_reference = enable
 
     @classmethod
     def from_openai(cls, api_key: str, model: str = "gpt-4", **kwargs):
