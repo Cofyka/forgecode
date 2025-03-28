@@ -25,6 +25,7 @@ class ForgeCode:
     _default_code_persistence = ForgeCache()
     _default_max_retries = 3
     _default_enable_self_reference = False
+    _default_use_cache = True
 
     def __init__(
             self, 
@@ -38,7 +39,8 @@ class ForgeCode:
             exec_env: ExecutionEnvironment = None,
             code_persistence: CodePersistence = None,
             max_retries: int = None,
-            enable_self_reference: bool = False):
+            enable_self_reference: bool = None,
+            use_cache: bool = None):
         
         """Initializes ForgeCode with an LLM client or falls back to the default client."""
         if llm is None:
@@ -72,6 +74,9 @@ class ForgeCode:
             
         if enable_self_reference is None:
             enable_self_reference = ForgeCode._default_enable_self_reference
+            
+        if use_cache is None:
+            use_cache = ForgeCode._default_use_cache
 
         # Inputs
         self.prompt = prompt
@@ -102,6 +107,8 @@ class ForgeCode:
                 self.modules.update({"forge": forge})
             else:
                 self.modules = {"forge": forge}
+        
+        self.use_cache = use_cache
 
     @classmethod
     def set_default_llm(cls, llm: LLMClient):
@@ -139,6 +146,11 @@ class ForgeCode:
     def set_default_enable_self_reference(cls, enable: bool):
         """Sets whether ForgeCode instances should enable self-reference by default."""
         cls._default_enable_self_reference = enable
+        
+    @classmethod
+    def set_default_use_cache(cls, use_cache: bool):
+        """Sets whether ForgeCode instances should use code caching by default."""
+        cls._default_use_cache = use_cache
 
     @classmethod
     def from_openai(cls, api_key: str, model: str = "gpt-4", **kwargs):
@@ -245,9 +257,9 @@ class ForgeCode:
 
                 code = None
 
-                # Try to load the code only on the first iteration,
+                # Try to load the code only on the first iteration if caching is enabled,
                 # because all subsequent iterations mean that the code was invalid
-                if attempt == 1:
+                if attempt == 1 and self.use_cache:
                     code = self.code_persistence.load(self._compute_hash())
 
                 if code is None:
@@ -263,8 +275,9 @@ class ForgeCode:
                 if schema is not None:
                     self._validate_result(result, schema)
 
-                # If the result is valid, save the code to the cache and break the loop
-                self.code_persistence.save(self._compute_hash(), code)
+                # If the result is valid and caching is enabled, save the code to the cache
+                if self.use_cache:
+                    self.code_persistence.save(self._compute_hash(), code)
 
                 break
             except CodeExecutionError as e:
@@ -336,6 +349,9 @@ class ForgeCode:
         return completion['code']
     
     def get_code(self) -> str:
+        """Returns the cached code if available and caching is enabled."""
+        if not self.use_cache:
+            return None
         return self.code_persistence.load(self._compute_hash())
     
     def _compute_hash(self) -> str:
