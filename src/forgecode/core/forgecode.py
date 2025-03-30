@@ -10,6 +10,7 @@ from .persistence.forgecache import ForgeCache
 from .utils.json_schema_generator import generate_schema
 from .utils.dict_formatter import format_dict
 from .utils.data_limiter import limit_json_data, LimiterConfig
+from .utils.imports import PYDANTIC_AVAILABLE, BaseModel
 
 from typing import Any, Dict
 from jsonschema import Draft7Validator, SchemaError, validate, ValidationError
@@ -87,6 +88,17 @@ class ForgeCode:
         # Generate schema from provided object
         if schema_from:
             self.schema = generate_schema(schema_from)
+        # If pydantic is available
+        if PYDANTIC_AVAILABLE:
+            # Initialize pydantic_model variable used to store the model
+            self.pydantic_model = None
+
+            # If schema is pydantic model
+            if isinstance(schema, type) and issubclass(schema, BaseModel):
+                # save the model for later instantiation of the result
+                self.pydantic_model = schema
+                # convert model to json schema
+                self.schema = schema.model_json_schema()
 
         if self.schema is not None:
             self._validate_json_schema(self.schema)
@@ -221,9 +233,21 @@ class ForgeCode:
         if modules is not None:
             modules_str = format_dict(modules)
 
+        if PYDANTIC_AVAILABLE:
+            pydantic_model = None
+
         if schema is None:
             if self.schema is not None:
                 schema = self.schema
+                if PYDANTIC_AVAILABLE:
+                    pydantic_model = self.pydantic_model
+        else:
+            if PYDANTIC_AVAILABLE:
+                if isinstance(schema, type) and issubclass(schema, BaseModel):
+                    # save the model for later instantiation of the result
+                    pydantic_model = schema
+                    # convert model to json schema
+                    schema = schema.model_json_schema()
         if schema_from is not None:
             schema = generate_schema(schema_from)
 
@@ -255,12 +279,13 @@ class ForgeCode:
                     local_vars=f"## Local Variables:\n{limit_json_data(local_vars, 10000, config=LimiterConfig(truncation_indicator = "..."))}" if local_vars else ""
                 )
 
+                fgce_hash = self._compute_hash(prompt, args, modules, schema)
                 code = None
 
                 # Try to load the code only on the first iteration if caching is enabled,
                 # because all subsequent iterations mean that the code was invalid
                 if attempt == 1 and self.use_cache:
-                    code = self.code_persistence.load(self._compute_hash())
+                    code = self.code_persistence.load(fgce_hash)
 
                 if code is None:
                     code = self.generate_code(system_prompt)
@@ -277,7 +302,7 @@ class ForgeCode:
 
                 # If the result is valid and caching is enabled, save the code to the cache
                 if self.use_cache:
-                    self.code_persistence.save(self._compute_hash(), code)
+                    self.code_persistence.save(fgce_hash, code)
 
                 break
             except CodeExecutionError as e:
@@ -307,6 +332,10 @@ class ForgeCode:
                 \nError:\n{error if error else "No error"}
                 \nCode Traceback:\n{stack_trace if stack_trace else "No traceback"}"""
             )
+
+        # If the result should be a Pydantic model, return the result as a model instance
+        if PYDANTIC_AVAILABLE and pydantic_model is not None:
+            return pydantic_model.model_validate(result)
 
         return result
 
@@ -352,19 +381,17 @@ class ForgeCode:
         """Returns the cached code if available and caching is enabled."""
         if not self.use_cache:
             return None
-        return self.code_persistence.load(self._compute_hash())
+        return self.code_persistence.load(self._compute_hash(prompt=self.prompt, args=self.args, modules=self.modules, schema=self.schema))
     
-    def _compute_hash(self) -> str:
+    def _compute_hash(self, prompt, args, modules, schema) -> str:
         """
         Computes a unique hash based on the input arguments that define the ForgeCode entity.
         Parameters not provided are taken from the instance attributes.
         This hash can be used to cache or log generated code for a given configuration.
         """
 
-        prompt = self.prompt
-        args_schema = generate_schema(self.args) if self.args is not None else None
-        modules_str = format_dict(self.modules) if self.modules is not None else None
-        schema = self.schema
+        args_schema = generate_schema(args) if args is not None else None
+        modules_str = format_dict(modules) if modules is not None else None
 
         data = {
             "prompt": prompt if prompt is not None else None,

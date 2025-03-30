@@ -1,19 +1,12 @@
 import functools
 import inspect
 import sys
-from typing import Type, Callable
+from typing import Callable
 import typing
 
 from forgecode.core.forgecode import ForgeCode
 from forgecode.core.utils.normalize_args import normalize_args
-
-try:
-    import pydantic
-    from pydantic import BaseModel
-    PYDANTIC_AVAILABLE = True
-except ImportError:
-    PYDANTIC_AVAILABLE = False
-    BaseModel = Type  # Just a placeholder for type hints
+from forgecode.core.utils.imports import PYDANTIC_AVAILABLE, BaseModel
 
 def type_to_schema(annotation) -> dict:
     """
