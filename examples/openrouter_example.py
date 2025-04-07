@@ -1,10 +1,9 @@
 import config
 from config import get_env_var
 
-from forgecode import ForgeCode, forge, OpenRouterLLMClient
+from forgecode import ForgeCode, forge
 
-ForgeCode.set_default_llm(OpenRouterLLMClient(api_key=get_env_var("OPENROUTER_API_KEY")))
-ForgeCode.set_default_model("mistralai/mistral-small-24b-instruct-2501") # Model must support structured output (https://openrouter.ai/models?order=newest&supported_parameters=structured_outputs)
+ForgeCode.setup_openrouter(api_key=get_env_var("OPENROUTER_API_KEY"), model="mistralai/mistral-small-24b-instruct-2501") # Model must support structured output (https://openrouter.ai/models?order=newest&supported_parameters=structured_outputs)
 
 @forge()
 def geo_distance(p1_lat: float, p1_lng: float, p2_lat: float, p2_lng: float) -> float:

@@ -1,6 +1,6 @@
 import config
 
-from forgecode import ForgeCode, OpenAILLMClient
+from forgecode import ForgeCode
 
 forge = ForgeCode(
     prompt="sum two numbers",

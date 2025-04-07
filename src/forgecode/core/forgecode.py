@@ -1,5 +1,6 @@
 from .llm.llm_client import LLMClient
 from .llm.openai_client import OpenAILLMClient
+from .llm.openrouter_client import OpenRouterLLMClient
 
 from .execution_environment.execution_environment import ExecutionEnvironment, CodeExecutionError
 from .execution_environment.simple_execution import SimpleExecutionEnvironment
@@ -17,7 +18,7 @@ from jsonschema import Draft7Validator, SchemaError, validate, ValidationError
 import json
 import hashlib
 
-from .prompts import CODE_GENERATION_SYSTEM_PROMPT
+from .prompts import CODE_GENERATION_SYSTEM_PROMPT, ADVANCED_CAPABILITIES_PROMPT
 
 class ForgeCode:
     _default_llm = None
@@ -119,6 +120,7 @@ class ForgeCode:
                 self.modules.update({"forge": forge})
             else:
                 self.modules = {"forge": forge}
+        self.enable_self_reference = enable_self_reference
         
         self.use_cache = use_cache
 
@@ -163,6 +165,55 @@ class ForgeCode:
     def set_default_use_cache(cls, use_cache: bool):
         """Sets whether ForgeCode instances should use code caching by default."""
         cls._default_use_cache = use_cache
+        
+    @classmethod
+    def setup_openai(cls, api_key: str, model: str = "gpt-4o"):
+        """
+        Convenience method to quickly set up OpenAI as the default LLM provider.
+        
+        This method configures both the default LLM client and default model in one call.
+        
+        Args:
+            api_key: OpenAI API key for authentication
+            model: OpenAI model to use (default: "gpt-4o")
+            
+        Example:
+            ```python
+            # Setup OpenAI as the default provider
+            ForgeCode.setup_openai(api_key="your-api-key")
+            
+            # Now you can create ForgeCode instances without specifying the LLM
+            forge = ForgeCode(prompt="sum two numbers", args={"a": 3, "b": 2}, schema_from={"sum": 5})
+            ```
+        """
+        openai_client = OpenAILLMClient(api_key=api_key)
+        cls.set_default_llm(openai_client)
+        cls.set_default_model(model)
+        
+    @classmethod
+    def setup_openrouter(cls, api_key: str, model: str = "openai/gpt-4o-2024-08-06"):
+        """
+        Convenience method to quickly set up OpenRouter as the default LLM provider.
+        
+        This method configures both the default LLM client and default model in one call.
+        Model must support structured output.
+        
+        Args:
+            api_key: OpenRouter API key for authentication
+            model: OpenRouter model to use (default: "openai/gpt-4o-2024-08-06")
+            
+        Example:
+            ```python
+            # Setup OpenRouter as the default provider
+            ForgeCode.setup_openrouter(api_key="your-api-key")
+            
+            # Now you can create ForgeCode instances without specifying the LLM
+            forge = ForgeCode(prompt="sum two numbers", args={"a": 3, "b": 2}, schema_from={"sum": 5})
+            ```
+        """
+        openrouter_client = OpenRouterLLMClient(api_key=api_key)
+        cls.set_default_llm(openrouter_client)
+        cls.set_default_model(model)
 
     @classmethod
     def from_openai(cls, api_key: str, model: str = "gpt-4", **kwargs):
@@ -273,6 +324,7 @@ class ForgeCode:
                     modules=modules_str,
                     args=args_schema,
                     result_schema=schema if schema else "No schema provided",
+                    advanced_capabilities=ADVANCED_CAPABILITIES_PROMPT if self.enable_self_reference else "",
                     previous_code=f"## Previous code:\n{previous_code}" if previous_code else "",
                     error=f"## Error:\n{error}" if error else "",
                     code_traceback=f"## Code Traceback:\n{stack_trace}" if stack_trace else "",

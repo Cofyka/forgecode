@@ -13,7 +13,6 @@ def get_env_var(name: str) -> str:
         raise ValueError(f"Missing {name}. Set it in a .env file or as an environment variable.")
     return value
 
-from forgecode import ForgeCode, OpenAILLMClient
+from forgecode import ForgeCode
 
-ForgeCode.set_default_llm(OpenAILLMClient(api_key=get_env_var("OPENAI_API_KEY")))
-ForgeCode.set_default_model("gpt-4o")
+ForgeCode.setup_openai(api_key=get_env_var("OPENAI_API_KEY"))
