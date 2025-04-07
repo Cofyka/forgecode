@@ -1,8 +1,7 @@
 import config
 from config import get_env_var
 
-from forgecode import ForgeCode, forge
-from forgecode.core.llm.openrouter_client import OpenRouterLLMClient
+from forgecode import ForgeCode, forge, OpenRouterLLMClient
 
 ForgeCode.set_default_llm(OpenRouterLLMClient(api_key=get_env_var("OPENROUTER_API_KEY")))
 ForgeCode.set_default_model("mistralai/mistral-small-24b-instruct-2501") # Model must support structured output (https://openrouter.ai/models?order=newest&supported_parameters=structured_outputs)

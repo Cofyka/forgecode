@@ -1,7 +1,6 @@
 import config
 
-from forgecode import ForgeCode
-from forgecode.core.llm.openai_client import OpenAILLMClient
+from forgecode import ForgeCode, OpenAILLMClient
 
 from pydantic import BaseModel
 
