@@ -194,6 +194,11 @@ from forgecode.core.persistence.code_persistence import CodePersistence
 ForgeCode.set_default_code_persistence(your_custom_storage)
 ```
 
+## Blog
+
+Learn more about ForgeCode in this detailed blog post:
+- [ForgeCode: Dynamic Python Code Generation Powered by LLM](https://medium.com/@filipmihajlovicc3/forgecode-dynamic-python-code-generation-powered-by-llm-4e38f7331059)
+
 ## License
 
 MIT
