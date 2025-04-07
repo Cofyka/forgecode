@@ -1,6 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 
+class LLMCodeGenerationError(Exception):
+    """Exception raised when the LLM fails to generate valid code.
+    
+    This can occur due to:
+    - Invalid API key
+    - Insufficient funds
+    - Model incapable of structured generation/Invalid schema formatting
+    """
+    pass
+
 class LLMClient(ABC):
     """Abstract base class for LLM clients.
     

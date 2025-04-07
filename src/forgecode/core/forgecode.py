@@ -1,4 +1,4 @@
-from .llm.llm_client import LLMClient
+from .llm.llm_client import LLMClient, LLMCodeGenerationError
 from .llm.openai_client import OpenAILLMClient
 from .llm.openrouter_client import OpenRouterLLMClient
 
@@ -367,6 +367,8 @@ class ForgeCode:
                 stack_trace = None
                 local_vars = None
                 continue
+            except LLMCodeGenerationError as e:
+                raise ForgeCodeError(f"LLM code generation error: {str(e)}")
             except Exception as e:
                 error = str(e)
                 stack_trace = None
@@ -426,6 +428,9 @@ class ForgeCode:
                 }
             }
         )
+
+        if 'code' not in completion:
+            raise LLMCodeGenerationError("LLM failed to generate code in the required format")
 
         return completion['code']
     
